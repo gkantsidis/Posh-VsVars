@@ -74,6 +74,7 @@ function Get-LatestVsVersion
   $version = Get-ChildItem $script:rootVsKey |
     ? { $_.PSChildName -match '^\d+\.\d+$' } |
     Sort-Object -Property @{ Expression = { $_.PSChildName -as [int] } } |
+    Where-Object -Property Name -NotMatch "15.0$" |
     Select -ExpandProperty PSChildName -Last 1
 
   if (!$version)
