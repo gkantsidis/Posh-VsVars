@@ -23,6 +23,24 @@ function Get-Batchfile ($file)
   return $environment
 }
 
+function Get-BatchfileWithArchitecture ($file, $architecture)
+{
+  if (!(Test-Path $file))
+  {
+    throw "Could not find batch file $file"
+  }
+
+  Write-Verbose "Executing batch file $file with architecture $args in separate shell"
+  $cmd = "`"$file`" $architecture & set"
+  $environment = @{}
+  . $Env:ComSpec /c $cmd | % {
+    $p, $v = $_.split('=')
+    $environment.$p = $v
+  }
+
+  return $environment
+}
+
 function FilterDuplicatePaths
 {
   [CmdletBinding()]
@@ -50,6 +68,9 @@ function FilterDuplicatePaths
 
 function Get-LatestVsVersion
 {
+  # TODO: Remove the Where-Object below when Visual Studio 15.0 stabilizes
+  Write-Warning -Message "Ignoring Visual Studio 15.0, even if it exists"
+
   $version = Get-ChildItem $script:rootVsKey |
     ? { $_.PSChildName -match '^\d+\.\d+$' } |
     Sort-Object -Property @{ Expression = { $_.PSChildName -as [int] } } |
@@ -61,6 +82,7 @@ function Get-LatestVsVersion
   }
 
   Write-Verbose "Found latest Visual Studio Version $Version"
+
   return $version
 }
 
@@ -130,6 +152,24 @@ function Get-VsVars
   $BatchFile = Join-Path (Join-Path $VsRootDir 'Tools') 'vsvars32.bat'
   if (!(Test-Path $BatchFile))
   {
+    if ($version -eq '15.0') {
+        # TODO: Figure out a stable way to detect installation directory for Visual Studio 15 Preview 4 and higher
+        # The problem is that the InstallDir property does not seem to work correctly.
+        $VsKey = Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\VSIP\15.0"
+        if ($VsKey -and $VsKey.InstallDir) {
+            $VsRootDir = Split-Path $VsKey.InstallDir
+            $BatchFile = Join-Path -Path $VsRootDir -ChildPath Common7 | `
+                         Join-Path -ChildPath IDE | `
+                         Join-Path -ChildPath VC | `
+                         Join-Path -ChildPath 'vcvarsall.bat'
+
+            if (Test-Path $VsRootDir) {
+                # TODO: Checks for a fix to vsvars32.bat. In VS 15 Preview 4 it points to the wrong location for vcvarsall.bat.
+                return (Get-BatchfileWithArchitecture -File $BatchFile x86)
+            }
+        }
+    }
+
     Write-Warning "Could not find Visual Studio $version batch file $BatchFile"
     return
   }
@@ -238,10 +278,18 @@ function Set-VsVars
   {
     $progFiles = $Env:ProgramFiles
     if (${env:ProgramFiles(x86)}) { $progFiles = ${env:ProgramFiles(x86)} }
-    $tools = Join-Path $progFiles "MSBuild\Microsoft\VisualStudio\v$Version"
-    $ENV:VSToolsPath = $tools
+    if (!$progFiles -and ${Env:CommonProgramFiles(x86)}) { 
+        $progFiles = Split-Path ${Env:CommonProgramFiles(x86)}
+    }
 
-    Write-Verbose "SDK (non-VS) install found - setting VSToolsPath to $tools`n`n"
+    if ($progFiles) {
+        $tools = Join-Path $progFiles "MSBuild\Microsoft\VisualStudio\v$Version"
+        $ENV:VSToolsPath = $tools
+
+        Write-Verbose "SDK (non-VS) install found - setting VSToolsPath to $tools`n`n"
+    } else {
+        Write-Error "Cannot find Program Files (x86) directory"
+    }
   }
 }
 
