@@ -246,7 +246,12 @@ function Set-VsVars
 
   if ($setVersion) { return }
 
-  (Get-VsVars -Version $Version).GetEnumerator() |
+  $variables = Get-VsVars -Version $Version
+  if ($variables -eq $null) {
+    return
+  }
+
+  $variables.GetEnumerator() |
     ? { $_.Key -ne 'PROMPT' } |
     % {
       $name = $_.Key
