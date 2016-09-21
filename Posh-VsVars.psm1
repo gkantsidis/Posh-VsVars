@@ -23,22 +23,32 @@ function Get-Batchfile ($file)
   return $environment
 }
 
-function Get-BatchfileWithArchitecture ($file, $architecture)
+function Get-BatchfileWithArgument
 {
-  if (!(Test-Path $file))
-  {
-    throw "Could not find batch file $file"
-  }
+    [CmdletBinding()]
+    param(
+        [string]
+        [ValidateNotNullOrEmpty()]
+        $File,
 
-  Write-Verbose "Executing batch file $file with architecture $args in separate shell"
-  $cmd = "`"$file`" $architecture & set"
-  $environment = @{}
-  . $Env:ComSpec /c $cmd | % {
-    $p, $v = $_.split('=')
-    $environment.$p = $v
-  }
+        [string]
+        $Argument
+    )
+  
+    if (!(Test-Path -Path $file -PathType Leaf))
+    {
+        throw "Could not find batch file $file"
+    }
 
-  return $environment
+    Write-Verbose "Executing batch file $file with architecture $args in separate shell"
+    $cmd = "`"$File`" $Argument & set"
+    $environment = @{}
+    . $Env:ComSpec /c $cmd | % {
+        $p, $v = $_.split('=')
+        $environment.$p = $v
+    }
+
+    return $environment
 }
 
 function FilterDuplicatePaths
@@ -166,7 +176,7 @@ function Get-VsVars
 
             if (Test-Path $VsRootDir) {
                 # TODO: Checks for a fix to vsvars32.bat. In VS 15 Preview 4 it points to the wrong location for vcvarsall.bat.
-                return (Get-BatchfileWithArchitecture -File $BatchFile x86)
+                return (Get-BatchfileWithArgument -File $BatchFile -Argument x86)
             }
         }
     }
@@ -299,4 +309,111 @@ function Set-VsVars
   }
 }
 
-Export-ModuleMember -Function Get-VsVars, Set-VsVars
+function Get-VsVarsExtended
+{
+  [CmdletBinding()]
+  param(
+    [string]
+    [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15.0', 'latest')]
+    $Version = 'latest',
+
+    [string]
+    [ValidateSet('x86', 'x86_amd64', 'x86_arm', 'amd64', 'amd64_x86', 'amd64_arm')]
+    $Architecture = "amd64"
+  )
+
+  if ($version -eq 'latest') { $version = Get-LatestVsVersion }
+
+  Write-Verbose "Reading VSVars for $version"
+
+  $VsKey = Get-ItemProperty "$script:rootVsKey\$version" -ErrorAction SilentlyContinue
+  if (!$VsKey -or !$VsKey.InstallDir)
+  {
+    Write-Warning "Could not find Visual Studio $version in registry"
+    return
+  }
+
+  $VsRootDir = Split-Path $VsKey.InstallDir `
+             | Split-Path `
+             | Join-Path -ChildPath VC
+  $BatchFile = Join-Path -Path $VsRootDir -ChildPath "vcvarsall.bat"
+
+  return (Get-BatchfileWithArgument -File $BatchFile -Argument $Architecture)
+}
+
+function Set-VsVarsExtended
+{
+  [CmdletBinding()]
+  param(
+    [string]
+    [ValidateSet('8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15.0', 'latest')]
+    $Version = 'latest',
+
+    [string]
+    [ValidateSet('x86', 'x86_amd64', 'x86_arm', 'amd64', 'amd64_x86', 'amd64_arm')]
+    $Architecture = "amd64"
+  )
+
+  $name = "Posh-VsVars-Set-$Version"
+  if ($Version -eq 'latest') { $name = "Posh-VsVars-Set-$(Get-LatestVsVersion)" }
+
+  #continually jamming stuff into PATH is *not* cool ;0
+  $setVersion = Get-Variable -Scope Global -Name $name `
+    -ErrorAction SilentlyContinue
+
+  if ($setVersion) { return }
+
+  $variables = Get-VsVarsExtended -Version $Version -Architecture $Architecture
+  if ($variables -eq $null) {
+    return
+  }
+
+  $variables.GetEnumerator() |
+    ? { $_.Key -ne 'PROMPT' } |
+    % {
+      $name = $_.Key
+      $path = "Env:$name"
+      if (Test-Path -Path $path)
+      {
+        $existing = Get-Item -Path $path | Select -ExpandProperty Value
+        if ($existing -ne $_.Value)
+        {
+          # Treat PATH specially to prevent duplicates
+          if ($name -eq 'PATH')
+          {
+            $_.Value = FilterDuplicatePaths -Path $_.Value
+          }
+
+          Write-Verbose "Overwriting $name with $($_.Value)`n      was:`n$existing`n`n"
+          Set-Item -Path $path -Value $_.Value
+        }
+      }
+      else
+      {
+        Write-Verbose "Setting $name to $($_.Value)`n`n"
+        Set-Item -Path $path -Value $_.Value
+      }
+    }
+
+  Set-Variable -Scope Global -Name $name -Value $true
+
+  if (!(Test-Path 'Env:\VSToolsPath'))
+  {
+    $progFiles = $Env:ProgramFiles
+    if (${env:ProgramFiles(x86)}) { $progFiles = ${env:ProgramFiles(x86)} }
+    if (!$progFiles -and ${Env:CommonProgramFiles(x86)}) { 
+        $progFiles = Split-Path ${Env:CommonProgramFiles(x86)}
+    }
+
+    if ($progFiles) {
+        $tools = Join-Path $progFiles "MSBuild\Microsoft\VisualStudio\v$Version"
+        $ENV:VSToolsPath = $tools
+
+        Write-Verbose "SDK (non-VS) install found - setting VSToolsPath to $tools`n`n"
+    } else {
+        Write-Error "Cannot find Program Files (x86) directory"
+    }
+  }
+}
+
+Export-ModuleMember -Function Get-VsVars, Set-VsVars, Get-VsVarsExtended, Set-VsVarsExtended
