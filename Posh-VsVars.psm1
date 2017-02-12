@@ -5,6 +5,9 @@ $script:rootVsKey = if ([IntPtr]::size -eq 8)
 else
   { "HKLM:SOFTWARE\Microsoft\VisualStudio" }
 
+# The following contains information for recovery the installation information for VS2015
+. $PSScriptRoot\VisualStudioConfiguration.ps1
+
 function Get-Batchfile ($file)
 {
   if (!(Test-Path $file))
@@ -15,9 +18,11 @@ function Get-Batchfile ($file)
   Write-Verbose "Executing batch file $file in separate shell"
   $cmd = "`"$file`" & set"
   $environment = @{}
-  cmd /c $cmd | % {
-    $p, $v = $_.split('=')
-    $environment.$p = $v
+  cmd /c $cmd | ForEach-Object -Process {
+    if ($line.Contains("=") -and (-not ($line.StartsWith("*")))) {
+      $p, $v = $_.split('=')
+      $environment.$p = $v
+    }
   }
 
   return $environment
@@ -43,9 +48,12 @@ function Get-BatchfileWithArgument
     Write-Verbose "Executing batch file $file with architecture $args in separate shell"
     $cmd = "`"$File`" $Argument & set"
     $environment = @{}
-    . $Env:ComSpec /c $cmd | % {
-        $p, $v = $_.split('=')
-        $environment.$p = $v
+    . $Env:ComSpec /c $cmd | ForEach-Object -Process {
+        $line = $_
+        if ($line.Contains("=") -and (-not ($line.StartsWith("*")))) {
+          $p, $v = $line.split('=')
+          $environment.$p = $v
+        }
     }
 
     return $environment
@@ -63,7 +71,7 @@ function FilterDuplicatePaths
   $uniquePaths = @{}
 
   $filtered = $Path -split ';' |
-    ? {
+    Where-Object -FilterScript {
       if (!$uniquePaths.ContainsKey($_))
       {
         $uniquePaths.Add($_, '')
@@ -78,14 +86,11 @@ function FilterDuplicatePaths
 
 function Get-LatestVsVersion
 {
-  # TODO: Remove the Where-Object below when Visual Studio 15.0 stabilizes
-  Write-Warning -Message "Ignoring Visual Studio 15.0, even if it exists"
-
   $version = Get-ChildItem $script:rootVsKey |
-    ? { $_.PSChildName -match '^\d+\.\d+$' } |
+    Where-Object -FilterScript { $_.PSChildName -match '^\d+\.\d+$' } |
     Sort-Object -Property @{ Expression = { $_.PSChildName -as [int] } } |
-    Where-Object -Property Name -NotMatch "15.0$" |
-    Select -ExpandProperty PSChildName -Last 1
+    # Where-Object -Property Name -NotMatch "15.0$" |
+    Select-Object -ExpandProperty PSChildName -Last 1
 
   if (!$version)
   {
@@ -117,7 +122,7 @@ function Get-VsVars
   11.0      Visual Studio 2012
   12.0      Visual Studio 2013
   14.0      Visual Studio 2015
-  15.0      Visual Studio 15 beta
+  15.0      Visual Studio 15
   latest    Finds the latest version installed automatically (default)
 .Outputs
   Returns a [Hashtable]
@@ -163,22 +168,17 @@ function Get-VsVars
   $BatchFile = Join-Path (Join-Path $VsRootDir 'Tools') 'vsvars32.bat'
   if (!(Test-Path $BatchFile))
   {
+    Write-Verbose -Message "Special handling of Visual Studio 15"
     if ($version -eq '15.0') {
-        # TODO: Figure out a stable way to detect installation directory for Visual Studio 15 Preview 4 and higher
-        # The problem is that the InstallDir property does not seem to work correctly.
-        $VsKey = Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\VSIP\15.0"
-        if ($VsKey -and $VsKey.InstallDir) {
-            $VsRootDir = Split-Path $VsKey.InstallDir
-            $BatchFile = Join-Path -Path $VsRootDir -ChildPath Common7 | `
-                         Join-Path -ChildPath IDE | `
-                         Join-Path -ChildPath VC | `
-                         Join-Path -ChildPath 'vcvarsall.bat'
+      $vs15 = Get-VisualStudioInstance
+      $BatchFile = Join-Path -Path $vs15 -ChildPath VC | `
+                   Join-Path -ChildPath Auxiliary | `
+                   Join-Path -ChildPath Build | `
+                   Join-Path -ChildPath vcvarsall.bat
 
-            if (Test-Path $VsRootDir) {
-                # TODO: Checks for a fix to vsvars32.bat. In VS 15 Preview 4 it points to the wrong location for vcvarsall.bat.
-                return (Get-BatchfileWithArgument -File $BatchFile -Argument x86)
-            }
-        }
+      if (Test-Path $BatchFile) {
+        return (Get-BatchfileWithArgument -File $BatchFile -Argument x86)
+      }
     }
 
     Write-Warning "Could not find Visual Studio $version batch file $BatchFile"
@@ -262,13 +262,13 @@ function Set-VsVars
   }
 
   $variables.GetEnumerator() |
-    ? { $_.Key -ne 'PROMPT' } |
-    % {
+    Where-Object -FilterScript { $_.Key -ne 'PROMPT' } |
+    ForEach-Object -Process {
       $name = $_.Key
       $path = "Env:$name"
       if (Test-Path -Path $path)
       {
-        $existing = Get-Item -Path $path | Select -ExpandProperty Value
+        $existing = Get-Item -Path $path | Select-Object -ExpandProperty Value
         if ($existing -ne $_.Value)
         {
           # Treat PATH specially to prevent duplicates
@@ -333,10 +333,18 @@ function Get-VsVarsExtended
     return
   }
 
-  $VsRootDir = Split-Path $VsKey.InstallDir `
-             | Split-Path `
-             | Join-Path -ChildPath VC
-  $BatchFile = Join-Path -Path $VsRootDir -ChildPath "vcvarsall.bat"
+  if ($version -eq "15.0") {
+    $vs15 = Get-VisualStudioInstance
+    $BatchFile = Join-Path -Path $vs15 -ChildPath VC | `
+                  Join-Path -ChildPath Auxiliary | `
+                  Join-Path -ChildPath Build | `
+                  Join-Path -ChildPath vcvarsall.bat
+  } else {
+    $VsRootDir = Split-Path $VsKey.InstallDir `
+                | Split-Path `
+                | Join-Path -ChildPath VC
+    $BatchFile = Join-Path -Path $VsRootDir -ChildPath "vcvarsall.bat"
+  }
 
   return (Get-BatchfileWithArgument -File $BatchFile -Argument $Architecture)
 }
