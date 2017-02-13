@@ -19,6 +19,7 @@ function Get-Batchfile ($file)
   $cmd = "`"$file`" & set"
   $environment = @{}
   cmd /c $cmd | ForEach-Object -Process {
+    $line = $_
     if ($line.Contains("=") -and (-not ($line.StartsWith("*")))) {
       $p, $v = $_.split('=')
       $environment.$p = $v
