@@ -58,7 +58,7 @@ function Get-VisualStudioInstance {
         $thisversion.StartsWith("$Version.")
     }
 
-    if ($installation -eq $null) {
+    if ($installations -eq $null) {
         throw "Cannot find Visual Studio version $Version"
     }
     
