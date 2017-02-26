@@ -1,15 +1,13 @@
-![logo_256.png](logo_256.png)
 # Posh-VsVars
+
+![logo_256.png](logo_256.png)
 
 Powershell cmdlets to help import Visual Studios `vsvars32.bat` into the current
 shell session for use with
 
 ## Compatibility
 
-* This is written for Powershell v2 / v3
-  * Powershell v3 can be installed with [Chocolatey][] via `cinst powershell`
-
-[Chocolatey]: http://www.chocolatey.org
+* This is written for Powershell v5
 
 ## Installation
 
