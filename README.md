@@ -2,33 +2,38 @@
 
 ![logo_256.png](logo_256.png)
 
-Powershell cmdlets to help import Visual Studios `vsvars32.bat` into the current
-shell session for use with
+Powershell cmdlets to help import Visual Studios `vcvarsall.bat` into the current
+shell session for use with. The code was based on [Posh-VsVars](https://github.com/Iristyle/Posh-VsVars),
+but it has been rewritten to work with VS15 (Visual Studio 2017). It also favors x64 by default.
+I have not tested with versions prior to VS14 (Visual Studio 2015), and in settings with multiple VS15 installations.
 
 ## Compatibility
 
-* This is written for Powershell v5
+* This is written for Powershell v5.
+* It requires the `VSSetup` module to be installed.
 
 ## Installation
 
-### Chocolatey
+### Source from GitHub
 
-Once Chocolatey has been installed, simply use the `cinst` command.
+One approach is to clone into your modules directory:
 
 ```powershell
-cinst posh-vsvars
+git clone https://github.com/gkantsidis/Posh-VsVars
 ```
 
-Chocolatey installation will both import the module into your PowerShell profile
-AND run `Set-VsVars`.  If the default `latest` version behavior is undesirable,
-then edit the `$PROFILE` file, find where `Posh-VsVars` is dot-sourced from,
-and comment the line `Set-VsVars`
+You may also consider cloning the following repo:
+```
+git clone https://github.com/gkantsidis/WindowsPowerShell
+```
+
+and then follow the instructions therein.
 
 ## Supported Commands
 
 ### Set-VsVars
 
-Will find and load the `vsvars32.bat` file for the latest Visual Studio version
+Will find and load the `vcvarsall.bat` file for the latest Visual Studio version
 installed on the given system, and will extract the environment information
 into the current shell session.
 
@@ -42,18 +47,10 @@ The same as above, except will only look for Visual Studio 2012.
 Set-VsVars -Version '11.0'
 ```
 
-Note a couple of useful points about this cmdlet:
-
-- The `PROMPT` environment variable is excluded from being overwritten
-- A global variable in the current session ensures that the same
-environment variables haven't been loaded multiple times.
-- `PATH` has duplicate entries removed in an effort to prevent it from
-exceeding the length allowed by the shell (generally 2048 characters)
-
 ### Get-VsVars
 
-Will find and load the `vsvars32.bat` file for the latest Visual Studio version
-installed on the given system, extrapolating it's environment information into a Hash.
+Will find and load the `vcvarsall.bat` file for the latest Visual Studio version
+installed on the given system, and returns a list of the changes that the script will make.
 
 ```powershell
 Get-VsVars
@@ -65,6 +62,15 @@ The same as above, except will only look for Visual Studio 2012.
 Get-VsVars -Version '11.0'
 ```
 
+### Remove-VsVars
+
+Will remove all settings imported by the Visual Studio script.
+
+```powershell
+Remove-VsVars
+```
+
+
 ## Credits
 
 * Original concept is derived from Chris Tavares ([@gzortch][]) - [The last vsvars32 I'll ever need][]
@@ -74,8 +80,3 @@ Get-VsVars -Version '11.0'
 [The last vsvars32 I'll ever need]: http://www.tavaresstudios.com/Blog/post/The-last-vsvars32ps1-Ill-ever-need.aspx
 [@shanselman]: https://github.com/shanselman
 [blog posting]: http://www.hanselman.com/blog/AwesomeVisualStudioCommandPromptAndPowerShellIconsWithOverlays.aspx
-
-## Roadmap
-
-None AFAIK.. this is feature complete.
-
