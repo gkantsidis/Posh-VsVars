@@ -44,12 +44,17 @@ function Set-VsVars {
         $Version = 'latest',
 
         [string]
-        [ValidateSet('x86', 'x86_amd64', 'x86_arm', 'amd64', 'amd64_x86', 'amd64_arm')]
+        [ValidateSet('x86', 'x86_amd64', 'x86_arm', 'amd64', 'amd64_x86', 'amd64_arm', 'dotnet')]
         $Architecture = "amd64"
     )
 
-    $script = Get-VsVarsScript -Version $Version
-    Set-EnvironmentVariables -Script $script -Parameters $Architecture
+    if ($Architecture -eq 'dotnet') {
+        $script = Get-VsVarsScript -Version $Version -Managed
+        Set-EnvironmentVariables -Script $script
+    } else {
+        $script = Get-VsVarsScript -Version $Version
+        Set-EnvironmentVariables -Script $script -Parameters $Architecture
+    }
 }
 
 function Get-VsVars {
@@ -60,12 +65,17 @@ function Get-VsVars {
         $Version = 'latest',
 
         [string]
-        [ValidateSet('x86', 'x86_amd64', 'x86_arm', 'amd64', 'amd64_x86', 'amd64_arm')]
+        [ValidateSet('x86', 'x86_amd64', 'x86_arm', 'amd64', 'amd64_x86', 'amd64_arm', 'dotnet')]
         $Architecture = "amd64"
     )
 
-    $script = Get-VsVarsScript -Version $Version
-    Get-ChangesInEnvironmentVariables -Script $script -Parameters $Architecture    
+    if ($Architecture -eq 'dotnet') {
+        $script = Get-VsVarsScript -Version $Version -Managed
+        Get-ChangesInEnvironmentVariables -Script $script
+    } else {
+        $script = Get-VsVarsScript -Version $Version
+        Get-ChangesInEnvironmentVariables -Script $script -Parameters $Architecture    
+    }
 }
 
 function Remove-VsVars {

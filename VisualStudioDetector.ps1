@@ -48,7 +48,10 @@ else
 function Get-VsVersions
 {
     [CmdletBinding()]
-    param()
+    param(
+        [switch]
+        $Managed
+    )
 
     # Below we ignore the registry entries for 15.0; this has been deprecated for VS15
     # it may exist in some systems as a leftover of early beta versions
@@ -66,9 +69,16 @@ function Get-VsVersions
         Write-Debug -Message "For version $version key is $VsKey in path $path"
         if (($VsKey -ne $null) -and (-not [System.String]::IsNullOrWhiteSpace($VsKey.InstallDir))) {
             $VsRootDir = Split-Path $VsKey.InstallDir `
-                       | Split-Path `
-                       | Join-Path -ChildPath VC
-            $BatchFile = Join-Path -Path $VsRootDir -ChildPath "vcvarsall.bat"
+                       | Split-Path
+
+            if ($Managed) {
+                $BatchFile = Join-Path -Path $VsRootDir -ChildPath "Common7" | `
+                             Join-Path -ChildPath "Tools" | `
+                             Join-Path -ChildPath "VsDevCmd.bat"
+            } else {
+                $BatchFile = Join-Path -Path $VsRootDir -ChildPath VC | `
+                             Join-Path -ChildPath "vcvarsall.bat"
+            }
 
             if (Test-Path -Path $BatchFile -PathType Leaf) {
                 $oldversion.Add($versionid, $BatchFile)
@@ -85,10 +95,17 @@ function Get-VsVersions
     ForEach-Object -Process {
         $version = $_.InstallationVersion
         $path = $_.InstallationPath
-        $BatchFile = Join-Path -Path $path -ChildPath "VC" |
-                     Join-Path -ChildPath "Auxiliary" |
-                     Join-Path -ChildPath "Build" |
-                     Join-Path -ChildPath "vcvarsall.bat"
+
+        if ($Managed) {
+            $BatchFile = Join-Path -Path $path -ChildPath "Common7" |
+                        Join-Path -ChildPath "Tools" |
+                        Join-Path -ChildPath "VsDevCmd.bat"
+        } else {
+            $BatchFile = Join-Path -Path $path -ChildPath "VC" |
+                        Join-Path -ChildPath "Auxiliary" |
+                        Join-Path -ChildPath "Build" |
+                        Join-Path -ChildPath "vcvarsall.bat"
+        }
 
         if (Test-Path -Path $BatchFile -PathType Leaf) {
             $newversion.Add($Version, $BatchFile)
@@ -108,10 +125,13 @@ function Get-VsVarsScript
     param(
         [string]
         [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15.0', 'latest')]
-        $Version = 'latest'
+        $Version = 'latest',
+
+        [switch]
+        $Managed
     )
 
-    $versions = Get-VsVersions
+    $versions = Get-VsVersions -Managed:$Managed
 
     if ($version -eq 'latest') { 
         $versions | Select-Object -ExpandProperty Value -Last 1
