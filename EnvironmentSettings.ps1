@@ -326,6 +326,10 @@ class CompositeVariable : Variable
 
     CompositeVariable([string]$name, [string[]]$additions) 
     {
+        if (($null -eq $additions) -or ($additions.Length -eq 0)) {
+            Write-Error -Message "Error in creating a composite variable for $name"
+        }
+
         $this.VariableName = $name
         $this.Additions = $additions
         $this.Removals = @()
@@ -411,7 +415,11 @@ function Get-ChangesInEnvironmentVariables {
                 if ($e.Removed.Length -ne 0) {
                     throw "Internal error: values should not be deleted here"
                 }
-                [CompositeVariable]::new($key, $e.Added)
+                if (($null -eq $e.Added) -or ($e.Added.Length -eq 0)) {
+                    Write-Warning -Message "Trying to add a variable with no changes; variable: $key"
+                } else {
+                    [CompositeVariable]::new($key, $e.Added)
+                }
             } else {
                 [AdditionalVariable]::new($key, $new[$key])
             }
@@ -426,7 +434,16 @@ function Get-ChangesInEnvironmentVariables {
                 if ($e.Removed.Length -ne 0) {
                     throw "Internal error: values should not be deleted here"
                 }
-                [CompositeVariable]::new($key, $e.Added)
+                
+                if (($null -eq $e.Added) -or ($e.Added.Length -eq 0)) {
+                    # The script typically will just add the new values without checking whether they also existed.
+                    # As a result the variable will appear to have changed, however, we will not detect any changes when
+                    # computing the difference.
+                    Write-Warning -Message "Trying to change a variable with no changes; variable: $key`nThis may happen if the variables already existed"
+                    # Write-Warning -Message ("--Before: {0}`n--After :{1}" -f $old[$key],$new[$key])
+                } else {
+                    [CompositeVariable]::new($key, $e.Added)
+                }
             } else {
                 [ChangedVariable]::new($key, $new[$key], $old[$key])
             }        
