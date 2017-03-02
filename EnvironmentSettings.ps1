@@ -439,6 +439,7 @@ function Get-ChangesInEnvironmentVariables {
                     # The script typically will just add the new values without checking whether they also existed.
                     # As a result the variable will appear to have changed, however, we will not detect any changes when
                     # computing the difference.
+                    # TODO: Maybe we want to actually identify the new variables and do insert them as changes.
                     Write-Warning -Message "Trying to change a variable with no changes; variable: $key`nThis may happen if the variables already existed"
                     # Write-Warning -Message ("--Before: {0}`n--After :{1}" -f $old[$key],$new[$key])
                 } else {
