@@ -53,7 +53,11 @@ function Set-VsVars {
         Set-EnvironmentVariables -Script $script
     } else {
         $script = Get-VsVarsScript -Version $Version
-        Set-EnvironmentVariables -Script $script -Parameters $Architecture
+        if ([System.String]::IsNullOrWhiteSpace($script)) {
+            Write-Error -Message "Cannot find installation for version $Version for native code"
+        } else {
+            Set-EnvironmentVariables -Script $script -Parameters $Architecture
+        }
     }
 }
 
