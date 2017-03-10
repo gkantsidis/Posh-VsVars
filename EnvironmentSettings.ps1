@@ -250,6 +250,42 @@ class AdditionalVariable : Variable
     }
 }
 
+class RemovedVariable : Variable
+{
+    hidden
+    [ValidateNotNullOrEmpty()]
+    [string]
+    $Name
+
+    hidden
+    [ValidateNotNullOrEmpty()]
+    [string]
+    $Value
+
+    RemovedVariable($name, $value)
+    {
+        $this.Name = $name
+        $this.Value = $value
+    }
+
+    [string] ToString()
+    {
+        return ("Removal of variable {0} with value: {1}" -f $this.Name,$this.Value)
+    }
+
+    Apply()
+    {
+        Write-Debug -Message ("Removing variable {0} with value: {1}" -f $this.Name,$this.Value)
+        [System.Environment]::SetEnvironmentVariable($this.Name, $null, [System.EnvironmentVariableTarget]::Process)
+    }
+
+    Remove()
+    {
+        Write-Debug -Message ("Adding variable {0}" -f $this.Name)
+        [System.Environment]::SetEnvironmentVariable($this.Name, $this.Value, [System.EnvironmentVariableTarget]::Process)        
+    }
+}
+
 class ChangedVariable : Variable
 {
     hidden
@@ -400,6 +436,13 @@ function Get-ChangesInEnvironmentVariables {
         [Hashtable] $old = Get-CurrentEnvironmentVariables
         [Hashtable] $new = Get-AllEnvironmentVariables -Script $Script -Parameters $Parameters
         $changes = Get-VariableDifferenceFlat -Before $old -After $new
+
+        $toremove = $changes.Removed | ForEach-Object -Process {
+            $key = $_
+            $keyi = $_.ToUpperInvariant()
+
+            Write-Verbose -Message "Removing variable $key --- ignoring for now"
+        }
 
         if ($changes.Removed.Length -ne 0) {
             Write-Error -Message ("Detected removal of {0} variables: {1}" -f $changes.Removed.Length,$changes.Removed)
