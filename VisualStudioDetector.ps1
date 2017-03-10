@@ -67,7 +67,10 @@ function Get-VsVersions
         $path = $version
         $VsKey = Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
         Write-Debug -Message "For version $version key is $VsKey in path $path"
-        if (($VsKey -ne $null) -and (-not [System.String]::IsNullOrWhiteSpace($VsKey.InstallDir))) {
+        if (($null -ne $VsKey) -and 
+            (Get-Member -InputObject $VsKey -Name "InstallDir" -MemberType Properties) -and
+            (-not [System.String]::IsNullOrWhiteSpace($VsKey.InstallDir)))
+        {
             $VsRootDir = Split-Path $VsKey.InstallDir `
                        | Split-Path
 
