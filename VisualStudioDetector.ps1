@@ -86,7 +86,7 @@ function Get-VsVersions
             if (Test-Path -Path $BatchFile -PathType Leaf) {
                 $oldversion.Add($versionid, $BatchFile)
             } else {
-                Write-Warning -Message "Cannot find setup script for version $version in $BatchFile"
+                Write-Verbose -Message "Cannot find setup script for version $version in $BatchFile"
             }    
         }            
     } 
