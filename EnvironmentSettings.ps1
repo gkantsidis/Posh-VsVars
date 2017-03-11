@@ -440,13 +440,15 @@ function Get-ChangesInEnvironmentVariables {
         $toremove = $changes.Removed | ForEach-Object -Process {
             $key = $_
             $keyi = $_.ToUpperInvariant()
+            $value = $old[$key]
 
-            Write-Verbose -Message "Removing variable $key --- ignoring for now"
-        }
-
-        if ($changes.Removed.Length -ne 0) {
-            Write-Error -Message ("Detected removal of {0} variables: {1}" -f $changes.Removed.Length,$changes.Removed)
-            throw [System.NotImplementedException]"Not handling removal of environment variables"
+            if ($VariablesWithManyValues.Contains($keyi)) {
+                Write-Error -Message ("Detected removal of {0} variable with value: {1}" -f $key,$value)
+                throw [System.NotImplementedException]"Not handling removal of environment variables"
+            } else {
+                Write-Verbose -Message "Removing variable $key with value '$value'"
+                [RemovedVariable]::new($key, $value)
+            }
         }
 
         $toadd = $changes.Added | ForEach-Object -Process {
@@ -493,7 +495,7 @@ function Get-ChangesInEnvironmentVariables {
             }        
         }
 
-        $total = $toadd + $tochange
+        $total = $toadd + $tochange + $toremove
         if ($variable_cache.ContainsKey($scriptkey)) {
             Write-Verbose -Message "Changing value in cache"
             $variable_cache[$scriptkey] = $total
