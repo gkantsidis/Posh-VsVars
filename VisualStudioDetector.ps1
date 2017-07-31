@@ -8,23 +8,23 @@
 
 .AUTHOR Christos Gkantsidis
 
-.COMPANYNAME 
+.COMPANYNAME
 
-.COPYRIGHT 
+.COPYRIGHT
 
-.TAGS 
+.TAGS
 
-.LICENSEURI 
+.LICENSEURI
 
-.PROJECTURI 
+.PROJECTURI
 
-.ICONURI 
+.ICONURI
 
-.EXTERNALMODULEDEPENDENCIES 
+.EXTERNALMODULEDEPENDENCIES
 
-.REQUIREDSCRIPTS 
+.REQUIREDSCRIPTS
 
-.EXTERNALSCRIPTDEPENDENCIES 
+.EXTERNALSCRIPTDEPENDENCIES
 
 .RELEASENOTES
 
@@ -39,10 +39,10 @@ $script:rootVsKey = if ([IntPtr]::size -eq 8)
 else
   { "HKLM:\SOFTWARE\Microsoft\VisualStudio" }
 
-<# 
+<#
 
-.DESCRIPTION 
- Discovers the versions of VisualStudio installed in the machine 
+.DESCRIPTION
+ Discovers the versions of VisualStudio installed in the machine
 
 #>
 function Get-VsVersions
@@ -67,7 +67,8 @@ function Get-VsVersions
         $path = $version
         $VsKey = Get-ItemProperty -Path $path -ErrorAction SilentlyContinue
         Write-Debug -Message "For version $version key is $VsKey in path $path"
-        if (($null -ne $VsKey) -and 
+
+        if (($null -ne $VsKey) -and
             (Get-Member -InputObject $VsKey -Name "InstallDir" -MemberType Properties) -and
             (-not [System.String]::IsNullOrWhiteSpace($VsKey.InstallDir)))
         {
@@ -87,9 +88,9 @@ function Get-VsVersions
                 $oldversion.Add($versionid, $BatchFile)
             } else {
                 Write-Verbose -Message "Cannot find setup script for version $version in $BatchFile"
-            }    
-        }            
-    } 
+            }
+        }
+    }
 
     [Microsoft.VisualStudio.Setup.Instance[]] $newinstallations = Get-VSSetupInstance -All
     $newversion = @{}
@@ -114,8 +115,8 @@ function Get-VsVersions
             $newversion.Add($Version, $BatchFile)
         } else {
             Write-Warning -Message "Cannot find setup script for version $version in $BatchFile"
-        }    
-        
+        }
+
     }
 
     $version = $oldversion + $newversion
@@ -127,7 +128,7 @@ function Get-VsVarsScript
     [CmdletBinding()]
     param(
         [string]
-        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15.0', 'latest')]
+        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15', '15.0', '15.1', '15.2', '15.3', 'latest')]
         $Version = 'latest',
 
         [switch]
@@ -136,11 +137,11 @@ function Get-VsVarsScript
 
     $versions = Get-VsVersions -Managed:$Managed
 
-    if ($version -eq 'latest') { 
+    if ($version -eq 'latest') {
         $versions | Select-Object -ExpandProperty Value -Last 1
     } else {
         $versions |
-        Where-Object -FilterScript { 
+        Where-Object -FilterScript {
             $fullname = $_.Name.ToString()
             $fullname.StartsWith($Version)
         } |

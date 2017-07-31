@@ -7,40 +7,40 @@
 
 .AUTHOR Christos Gkantsidis
 
-.COMPANYNAME 
+.COMPANYNAME
 
-.COPYRIGHT 
+.COPYRIGHT
 
-.TAGS 
+.TAGS
 
-.LICENSEURI 
+.LICENSEURI
 
-.PROJECTURI 
+.PROJECTURI
 
-.ICONURI 
+.ICONURI
 
-.EXTERNALMODULEDEPENDENCIES 
+.EXTERNALMODULEDEPENDENCIES
 
-.REQUIREDSCRIPTS 
+.REQUIREDSCRIPTS
 
-.EXTERNALSCRIPTDEPENDENCIES 
+.EXTERNALSCRIPTDEPENDENCIES
 
 .RELEASENOTES
 
 
 #>
 
-<# 
+<#
 
-.DESCRIPTION 
- Sets environmental variables for Visual Studio 
+.DESCRIPTION
+ Sets environmental variables for Visual Studio
 
 #>
 function Set-VsVars {
     [CmdletBinding()]
     param(
         [string]
-        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15.0', 'latest')]
+        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15', '15.0', '15.1', '15.2', '15.3', 'latest')]
         $Version = 'latest',
 
         [string]
@@ -53,6 +53,7 @@ function Set-VsVars {
         Set-EnvironmentVariables -Script $script
     } else {
         $script = Get-VsVarsScript -Version $Version
+
         if ([System.String]::IsNullOrWhiteSpace($script)) {
             Write-Error -Message "Cannot find installation for version $Version for native code"
         } else {
@@ -65,7 +66,7 @@ function Get-VsVars {
     [CmdletBinding()]
     param(
         [string]
-        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15.0', 'latest')]
+        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15', '15.0', '15.1', '15.2', '15.3', 'latest')]
         $Version = 'latest',
 
         [string]
@@ -78,7 +79,7 @@ function Get-VsVars {
         Get-ChangesInEnvironmentVariables -Script $script
     } else {
         $script = Get-VsVarsScript -Version $Version
-        Get-ChangesInEnvironmentVariables -Script $script -Parameters $Architecture    
+        Get-ChangesInEnvironmentVariables -Script $script -Parameters $Architecture
     }
 }
 
@@ -87,5 +88,5 @@ function Remove-VsVars {
     param(
     )
 
-    Remove-EnvironmentSettings    
+    Remove-EnvironmentSettings
 }
