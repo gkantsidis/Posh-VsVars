@@ -128,7 +128,7 @@ function Get-VsVarsScript
     [CmdletBinding()]
     param(
         [string]
-        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15', '15.0', '15.1', '15.2', '15.3', 'latest')]
+        [ValidateSet('7.1', '8.0', '9.0', '10.0', '11.0', '12.0', '14.0', '15', '15.0', '15.1', '15.2', '15.3', '15.4', '15.5', '15.6', '15.7', 'latest')]
         $Version = 'latest',
 
         [switch]
